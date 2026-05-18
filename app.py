@@ -9,6 +9,7 @@ import re
 @st.cache_resource
 def download_nltk_data():
     nltk.download('punkt')
+    nltk.download('punkt_tab')
 
 
 download_nltk_data()
