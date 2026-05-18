@@ -5,12 +5,10 @@ from nltk.stem.snowball import SnowballStemmer
 import time
 import re
 
-
 @st.cache_resource
 def download_nltk_data():
     nltk.download('punkt')
     nltk.download('punkt_tab')
-
 
 download_nltk_data()
 
@@ -26,8 +24,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("Анализатор скрытых стереотипов")
-st.write(
-    "Введите текст, комментарий или отрывок статьи, чтобы проверить его на наличие гендерных предрассудков и токсичности.")
+st.write("Введите текст, комментарий или отрывок статьи, чтобы проверить его на наличие гендерных предрассудков и токсичности.")
 
 STRONG_TRIGGERS = {
     "истеричк": 90,
@@ -65,7 +62,6 @@ EXACT_PHRASES = [
 def analyze_text(text):
     text_lower = text.lower()
     
-    # 1. Проверка на точные клише (наивысший приоритет)
     for phrase in EXACT_PHRASES:
         if re.search(phrase, text_lower):
             return 85, "Обнаружено устоявшееся клише. Механизм репродукции: использование гендерно-окрашенной лексики."
@@ -77,7 +73,6 @@ def analyze_text(text):
     toxicity_score = 0
     detected_stems = []
     
-    # 2. Однозначные триггеры (теперь ищет подстроку в корне, чтобы не пропускать слова)
     for stem in stemmed_tokens:
         for key, weight in STRONG_TRIGGERS.items():
             if key in stem:
@@ -85,7 +80,6 @@ def analyze_text(text):
                 if key not in detected_stems:
                     detected_stems.append(key)
                 
-    # 3. Контекстные триггеры
     context_score = 0
     context_stems = []
     for stem in stemmed_tokens:
@@ -95,15 +89,36 @@ def analyze_text(text):
                 if key not in context_stems:
                     context_stems.append(key)
                 
-    # Прибавляем баллы за контекст, ТОЛЬКО если найдено 2 и более подозрительных слова
     if len(context_stems) >= 2:
         toxicity_score += context_score
         detected_stems.extend(context_stems)
         
-    # 4. Итоговая классификация
     if toxicity_score >= 80:
         return min(toxicity_score, 98), f"Токсичность: Высокая. Скрытое утверждение о неравенстве (триггеры: {', '.join(set(detected_stems))})."
     elif toxicity_score >= 50:
         return min(toxicity_score, 79), f"Токсичность: Средняя. Сексизм или навязывание стереотипов (триггеры: {', '.join(set(detected_stems))})."
     else:
         return 0, "Токсичность не обнаружена. Текст классифицирован как нейтральный."
+
+user_input = st.text_area("Текст для анализа:", height=150, placeholder="Например: Женский коллектив — это всегда змеиный клубок...")
+
+if st.button("Проверить текст"):
+    if user_input.strip() == "":
+        st.warning("Пожалуйста, введите текст для анализа.")
+    else:
+        with st.spinner('Алгоритм NLP анализирует семантику...'):
+            time.sleep(1.5)
+            
+            score, verdict = analyze_text(user_input)
+            
+            st.markdown("### Результат анализа:")
+            
+            if score > 70:
+                st.error(f"Уровень токсичности/стереотипизации: {int(score)}%")
+                st.write(verdict)
+            elif score > 0:
+                st.warning(f"Уровень токсичности/стереотипизации: {int(score)}%")
+                st.write(verdict)
+            else:
+                st.success("Уровень токсичности: 0%")
+                st.write(verdict)
